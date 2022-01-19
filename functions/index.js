@@ -12,9 +12,7 @@ exports.onUserCreated = functions.firestore
         let userEmail = [user["email"]];
 
         sendEmail(userEmail,"Welcome to Nib Jobs",generateWelcomeEmail());
-
         return Promise.resolve(200);
-
     });
 
 
@@ -28,7 +26,7 @@ exports.onJobsApproved= functions.firestore
         const beforeDocument = change.before.exists ? change.before.data() : null;
         const jobTags = afterDocument["tags"];
 
-        if(afterDocument["approved"] !== beforeDocument["approved"] && afterDocument["approved"]){ // Shop Verified in the last edit
+        if(afterDocument["approved"] !== beforeDocument["approved"] && afterDocument["approved"]){ // Job Verified in the last edit
             return db
                 .collection("Users")
                 .where("categoryList", "array-contains-any", jobTags)
@@ -42,10 +40,8 @@ exports.onJobsApproved= functions.firestore
                         let user = u.data();
                         let userFCM = user["fcm"];
                         let userEmail = user["email"];
-
                         userFCMS.push(userFCM);
                         userEmails.push(userEmail);
-
                     });
 
                     try{
@@ -54,33 +50,26 @@ exports.onJobsApproved= functions.firestore
                         console.log("sending email error ------- > ", e.toString());
                     }
 
-
                     try{
                         // notifying via app messaging
                         const payload = {
                             notification: {
                                 title: `Job Notification`,
                                 body: `We have found a ${jobTags.join(",")} job for you!`
-                            },
-                            data: {
-                                body: JSON.stringify(afterDocument)
-                            }
+                            },  
                         };
                         const options = {
-                            "priority": "high",
-                            "timeToLive": 604800
-                        };
-                        return admin.messaging().sendToDevice(userFCMS,payload,options);
+                            priority : "high",
+                            timeToLive : 604800
+                        }
+                        return admin.messaging().sendToDevice(userFCMS,payload,options)
                     }catch (e){
-                        console.log("Error while sending notifications ------- > ",e.toString());
                         return Promise.resolve(500);
                     }
-
-
                 });
         }
-        else{
-            console.log("No one registered for this job tags...",jobTags.toString());
+        else{ // Job has been verified twice
+            console.log("Job was already verified");
             return Promise.resolve(400);
         }
 
