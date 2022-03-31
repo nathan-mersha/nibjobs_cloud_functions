@@ -16,6 +16,50 @@ exports.onUserCreated = functions.firestore
     });
 
 
+exports.onJobsApproved= functions.firestore
+    .document('job/{jobId}')
+    .onCreate((snapshot, context) => {
+
+        let job = snapshot.data();
+        let jobApproved = job["approved"]
+        let jobTags = job["tags"]
+        if(jobApproved){
+            return db
+                .collection("Users")
+                .where("categoryList", "array-contains-any", jobTags)
+                .get().then(snapshotUserData => {
+                    let users = snapshotUserData.docs;
+                    let userFCMS = [];
+                    users.forEach(function(u){
+                        let user = u.data();
+                        let userFCM = user["fcm"];
+                        userFCMS.push(userFCM);
+                    });
+
+                 
+                    try{
+                        // notifying via app messaging
+                        const payload = {
+                            notification: {
+                                title: `Job Notification`,
+                                body: `We have found a ${jobTags.join(",")} job for you!`
+                            },  
+                        };
+                        const options = {
+                            priority : "high",
+                            timeToLive : 604800
+                        }
+                        console.log("Sending notification to : ", userFCMS)
+                        return admin.messaging().sendToDevice(userFCMS,payload,options)
+                    }catch (e){
+                        return Promise.resolve(500);
+                    }
+                });
+        }else{
+            return Promise.resolve(200);
+        }
+
+});    
 
 // On jobs approved, notifies tags registered users.
 exports.onJobsApproved= functions.firestore
@@ -34,21 +78,21 @@ exports.onJobsApproved= functions.firestore
                     let users = snapshotUserData.docs;
 
                     let userFCMS = [];
-                    let userEmails = [];
+                    // let userEmails = [];
 
                     users.forEach(function(u){
                         let user = u.data();
                         let userFCM = user["fcm"];
-                        let userEmail = user["email"];
+                        // let userEmail = user["email"];
                         userFCMS.push(userFCM);
-                        userEmails.push(userEmail);
+                        // userEmails.push(userEmail);
                     });
 
-                    try{
-                        sendEmail(userEmails,`We have found a ${jobTags.join(",")} job for you!`,generateJobNotificationEmail(afterDocument["title"], afterDocument["tags"].join(","),afterDocument["description"],generateJobLink(afterDocument["id"])));
-                    }catch (e){
-                        console.log("sending email error ------- > ", e.toString());
-                    }
+                    // try{
+                    //     sendEmail(userEmails,`We have found a ${jobTags.join(",")} job for you!`,generateJobNotificationEmail(afterDocument["title"], afterDocument["tags"].join(","),afterDocument["description"],generateJobLink(afterDocument["id"])));
+                    // }catch (e){
+                    //     console.log("sending email error ------- > ", e.toString());
+                    // }
 
                     try{
                         // notifying via app messaging
@@ -62,6 +106,7 @@ exports.onJobsApproved= functions.firestore
                             priority : "high",
                             timeToLive : 604800
                         }
+                        console.log("Sending notification to : ", userFCMS)
                         return admin.messaging().sendToDevice(userFCMS,payload,options)
                     }catch (e){
                         return Promise.resolve(500);
