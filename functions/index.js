@@ -16,7 +16,7 @@ exports.onUserCreated = functions.firestore
     });
 
 
-exports.onJobsApproved= functions.firestore
+exports.onJobsCreated= functions.firestore
     .document('job/{jobId}')
     .onCreate((snapshot, context) => {
 
